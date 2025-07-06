@@ -1,4 +1,4 @@
-AlpyDAO
+`AlpyDAO`
 AlpyDAO is a minimal, functional on-chain DAO integrated with staking and ERC20-based rewards. The system is built for clarity, modularity, and extensibility. The DAO controls critical staking parameters (like reward rate) via governance proposals. Staking is the sole source of voting power.
 
 What’s Included
