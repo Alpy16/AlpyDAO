@@ -1,91 +1,153 @@
-
 # AlpyDAO
 
-AlpyDAO is a minimal, functional on-chain DAO integrated with staking and ERC20-based rewards. The system is built for clarity, modularity, and extensibility. The DAO controls critical staking parameters (like reward rate) via governance proposals. Staking is the sole source of voting power.
+AlpyDAO is a minimal on-chain DAO system built with Foundry. It includes a custom token (`AlpyToken`), a staking contract (`AlpyStaking`), and a governance contract (`AlpyDAO`). Users stake tokens to gain voting power and vote on proposals that execute arbitrary on-chain actions.
 
-## What’s Included
-AlpyToken: A standard ERC20 token used both for staking and rewards.
+---
 
-AlpyStaking: A staking contract that tracks deposits, distributes rewards over time, and determines voting power.
+## ✦ Contracts Overview
 
-AlpyDAO: A governance contract that lets stakers create, vote on, and execute proposals.
+### AlpyToken.sol
 
-DeployAll.s.sol: A Foundry script that deploys the full stack (Token, Staking, DAO).
+A standard ERC20 token used for staking and governance.
 
-SubmitProposal.s.sol: A sample script that creates a proposal to update the staking reward rate.
+```solidity
+contract AlpyToken is ERC20 {
+    constructor() ERC20("AlpyToken", "AT") {
+        _mint(msg.sender, 1_000_000 ether);
+    }
+}
+```
 
-Broadcast-compatible Anvil setup for local testing.
+### AlpyStaking.sol
 
-## Why This Exists
-This is a real-world governance architecture stripped down to its core components. The goal is to make on-chain governance tangible: staking-based voting, encoded proposals, decentralized execution, and dynamic updates to protocol parameters without needing contract redeployments.
+Handles staking logic, reward rate, and returns voting power to the DAO.
 
-It's structured like a protocol with token economics but remains developer-focused and readable.
+```solidity
+constructor(address _stakingToken, address _rewardToken, uint256 _rewardRate) {
+    stakingToken = IERC20(_stakingToken);
+    rewardToken = IERC20(_rewardToken);
+    rewardRate = _rewardRate;
+    lastUpdateTime = block.timestamp;
+}
+```
 
-## System Overview
-Staking (AlpyStaking):
-Users stake AlpyToken to gain voting power and earn AlpyToken rewards over time. The reward rate is controlled by the DAO.
+Includes:
+- `stakeTokens(uint256 amount)`
+- `unstakeTokens(uint256 amount)`
+- `claimRewards()`
+- `getVotes(address user)`
+- `setDao(address _dao)`
 
-## Governance (AlpyDAO):
-Users with a non-zero stake can create proposals to call arbitrary functions on whitelisted contracts. Proposals are voted on using current stake amounts. A proposal passes if votesFor > votesAgainst at the deadline.
+### AlpyDAO.sol
 
-## Token (AlpyToken):
-Basic ERC20. Minted once to the deployer. Used for both staking and as the reward asset.
+Core DAO contract that enables:
+- Proposal creation
+- Voting using staked tokens
+- Execution of successful proposals
 
-## Deployment (Anvil + Foundry)
-Step 1: Launch Anvil
+```solidity
+constructor(address _stakingContract, uint256 _votingPeriod) {
+    staking = AlpyStaking(_stakingContract);
+    votingPeriod = _votingPeriod;
+}
+```
+
+Includes:
+- `createProposal(...)`
+- `vote(...)`
+- `executeProposal(...)`
+
+---
+
+## ✦ Deployment
+
+Ensure Anvil is running:
+
+```bash
 anvil
+```
 
-Step 2: Deploy All Contracts
+Then deploy all components with:
+
+```bash
 forge script script/DeployAll.s.sol --broadcast --fork-url http://127.0.0.1:8545
+```
 
-This deploys:
+What it does:
+- Deploys `AlpyToken`
+- Deploys `AlpyStaking` using `AlpyToken`
+- Deploys `AlpyDAO` using `AlpyStaking`
+- Sets the DAO address inside the staking contract
+- Stakes 1000 ALPY tokens
 
-AlpyToken
+---
 
-AlpyStaking
+## ✦ Submitting a Proposal
 
-AlpyDAO
+Once deployed, submit a proposal like this:
 
-It also sets DAO address inside staking and stakes 1000 tokens from deployer
-
-Step 3: Submit Proposal
+```bash
 forge script script/SubmitProposal.s.sol --broadcast --fork-url http://127.0.0.1:8545
+```
 
-This creates a proposal inside AlpyDAO to update the reward rate on the staking contract.
+Proposal details:
+- Target: `AlpyStaking` contract
+- Function: `setRewardRate(5e18)`
+- Description: "Change reward rate to 5 ALPY/sec"
 
-Step 4 (Manual): Vote & Execute
-Once the voting period (1 day) passes, run:
+---
 
-cast send <dao_address> "vote(uint256,bool)" <proposalId> true --rpc-url http://127.0.0.1:8545 --private-key <key>
-cast send <dao_address> "executeProposal(uint256)" <proposalId> --rpc-url http://127.0.0.1:8545 --private-key <key>
+## ✦ Additional Staking
 
-Or implement those in a script if preferred.
+To stake more tokens from the deployer:
 
-## Project Structure
-src/
-├── AlpyDAO.sol
-├── AlpyStaking.sol
-├── AlpyToken.sol
+```bash
+forge script script/StakeAgain.s.sol --broadcast --fork-url http://127.0.0.1:8545
+```
 
-script/
-├── DeployAll.s.sol
-├── SubmitProposal.s.sol
+---
 
-test/
-└── AlpyDAOTest.t.sol (optional; excluded from GitHub if not finished)
+## ✦ Local Setup
 
-## Notes
-No vote delegation is implemented—only direct staking power counts.
+```bash
+forge install
+forge build
+forge test
+```
 
-Proposal calldata is raw and can include any encoded function call.
+To get your deployer address from the private key:
 
-setRewardRate() is restricted to only callable via DAO (msg.sender == address(this)).
+```bash
+cast wallet address --private-key $PRIVATE_KEY
+```
 
-All contracts are compatible with local testing and simulation (Anvil, Foundry).
+---
 
-Built With
-Solidity ^0.8.19
+## ✦ Testing Notes
 
-Foundry (Forge + Anvil)
+This system has been fully tested manually using:
+- Anvil fork
+- Full deployment
+- Proposal submission
+- Voting
+- Execution
 
-OpenZeppelin Contracts
+If needed, automated tests are available in a single unified test file (`AlpyDAOTest.t.sol`) and can be expanded further.
+
+---
+
+## ✦ License
+
+```
+MIT License
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the “Software”), to deal
+in the Software without restriction...
+```
+
+---
+
+## ✦ Author
+
+Built and maintained by [Alpy16](https://github.com/Alpy16)
